@@ -1,6 +1,6 @@
 # What mutations in breast cancer are important for survival?
 
-This project wil investigate TCGA open data on breast cancer, in order to determine what mutated genes contribute to survival probablility in breast cancer patients. Further of interest, is identifying the clonal origin of these mutations (ie. late or early in cancer evolution).
+This project will investigate TCGA open data on breast cancer, in order to determine what mutated genes contribute to survival probablility in breast cancer patients. Further of interest, is identifying the clonal origin of these mutations (ie. late or early in cancer evolution).
 
 ## Data
 
