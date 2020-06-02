@@ -6,7 +6,8 @@ This project wil investigate TCGA open data on breast cancer, in order to determ
 
 Open access data is obtained via the [cBio portal](https://docs.cbioportal.org/6.-web-api-and-clients/api-and-api-clients) from the BRCA cohort of the [TCGA pan-cancer atlas](https://www.cell.com/pb-assets/consortium/pancanceratlas/pancani3/index.html) project 
 
-Here's a sample plot
+## Sample plot
+
 ![](images/mutations_top10.png)
 
 ## References
