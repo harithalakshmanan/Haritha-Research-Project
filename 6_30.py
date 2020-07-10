@@ -1,30 +1,36 @@
 from bravado.client import SwaggerClient
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from collections import Counter
+from lifelines.plotting import plot_lifetimes
+from lifelines import KaplanMeierFitter
 
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def plot_mutations(m):
+def graph(full, mutation):
+    months, survival_status, overall_mutations = no_mutation(full, mutation)
 
-	# TODO: make a barplot of mutation counts
+    survival_data=pd.DataFrame({'OS_MONTHS': months,
+                                'OS_STATUS': survival_status # 0 if living, 1 if dead
+                                })
 
-	mdf = pd.DataFrame.from_dict(m, orient='index')
-	mdf = mdf.sort_values(by=[0], ascending = False)
-	mdf.head(10).plot(
-    	kind='bar',
-    	color='green',
-    	legend=None
-	)
-	plt.xlabel('')
-	plt.xticks(rotation=300)
-	plt.ylabel('Number of samples', labelpad=10)
-	plt.title('Number of mutations in 10 genes in\n Breast Invasive Carcinoma (TCGA, PanCancer Atlas)',pad=10)
-	plt.subplots_adjust(bottom=0.15)
-	plt.show()
-	plt.savefig("mutations_top10.png")
+    has_mutation=np.array(overall_mutations) == 1 #0 if don't have mutation, 1 if do have mutation
 
+    ## create an kmf object
+    kmf=KaplanMeierFitter()
+
+    ## fit the data into a model for each group
+    kmf.fit(survival_data.OS_MONTHS[has_mutation], survival_data.OS_STATUS[has_mutation], label="have mutation")
+    layer1=kmf.plot(ci_show=True)
+
+    kmf.fit(survival_data.OS_MONTHS[~has_mutation], survival_data.OS_STATUS[~has_mutation], label="no mutation")
+    layer2=kmf.plot(ax=layer1, ci_show=True)
+
+    ## view plot
+    plt.show()
+    
 def no_mutation (n,m):
         #list containing patient IDs with mutation of gene
         no=[]
@@ -32,6 +38,9 @@ def no_mutation (n,m):
         #list containing patient IDs without mutation of gene
         use=[]
 
+        overall_mutations=[]
+
+        everything=[]
         #x is declared as 0 and will be incremented inside the while loop until x is the number of patient IDs in the original list with all patient IDs
         x=0
         while x<len(n):
@@ -41,48 +50,37 @@ def no_mutation (n,m):
                         if n[x]==i or n[x]=='TCGA-BH-A0B2' or n[x]=='TCGA-OL-A66H':
                                 #if the patient ID is in the list of those with a mutation then the patient ID will be added to the list that will not be used
                                 no.append(i)
-                                
+                                everything.append(i)
+                                overall_mutations.append(1)                                
                                 x=x+1
 
                 #if the patient ID is not in the list of those with a mutation then the patient ID will be added to the list that will be outputted by this method
                 use.append(n[x])
+                everything.append(n[x])
+                overall_mutations.append(0)
 
                 #increments x
                 x=x+1
-        print("List of those without mutation {} ".format(use))
+
+        print("all the patient IDs used in the study {} ".format(everything))
+        print("overall mutation list {} ".format(overall_mutations))
         print(" ")
-        print("This list will output the information regarding those without a mutation for the selected gene")
-        for j in use:
-                #outputs patient Id of someone without mutation in gene
-                print("Patient Id: {} ".format(j))
-
+        survival_status=[]
+        months_living=[]
+        for j in everything:
                 #outputs how many months that person has been alive after diagnosis
-                living = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_MONTHS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
-                print("Months Living: {} ".format(living))
-
+                months_living.append(cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_MONTHS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0])
+    
                 #outputs current age of person without mutation
-                age = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='AGE', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
-                print("Age: {} ".format(age))
+                living = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
+                if living == '0:LIVING':
+                    survival_status.append(0)
+                elif living == '1:DECEASED':
+                    survival_status.append(1)
 
-                print(" ")
-	
-def mutation (z):
-        # method in charge of outputting data concerning those with a mutation in gene EP300
-        print(" ")
-        print("This list will output the information regarding those with a mutation for the selected gene")
-        for y in z:
-                #outputs patient Id of someone with a mutation in gene EP300
-                print("Patient Id: {} ".format(y))
+        months = [x.value for x in months_living]
+        return months, survival_status, overall_mutations
 
-                #outputs how many months that person has been alive after diagnosis
-                living = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_MONTHS', patientId=y, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
-                print("Months Living: {} ".format(living))
-
-                #outputs current age of person with mutation
-                age = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='AGE', patientId=y, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
-                print("Age: {} ".format(age))
-
-                print(" ")
 def main():
 
 	# some examples of information we can query
@@ -111,27 +109,11 @@ def main():
 	print("The number of patients with a mutation of the EP300 gene is {} ".format(len(mutations)))
 	patients = cbioportal.Patients.getAllPatientsInStudyUsingGET(studyId='brca_tcga_pan_can_atlas_2018').result()
 	patientIds = [x.patientId for x in patients]
-	
-                
-	# Id stores the patientId
-	#Id=['TCGA-A2-A0YF']
-	print("patient ID {} ".format(patientIds))
 
 	mutation_EP300 = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=2033, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
 	patient_EP300=[x.patientId for x in mutation_EP300]
-	print("patient Ids with a mutation in gene EP300 {} ".format(patient_EP300))
-
-	# which genes have mutations? create plot to visualize
-	mutated_genes = Counter([m.gene.hugoGeneSymbol for m in mutations])
-
-	print("The brca_tcga_pan_can_atlas_2018 study spans {} mutations, in {} genes".format(
-		  len(mutations),
-		  len(mutated_genes)
-	))
-
-	mutation(patient_EP300)
-	no_mutation(patientIds,patient_EP300)
-	#plot_mutations(mutated_genes)
+	
+	graph(patientIds,patient_EP300)
 
 if __name__ == '__main__':
 	main()
