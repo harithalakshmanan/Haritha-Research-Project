@@ -32,14 +32,22 @@ def no_mutation (n,m):
         #list containing patient IDs without mutation of gene
         use=[]
 
+        #x is declared as 0 and will be incremented inside the while loop until x is the number of patient IDs in the original list with all patient IDs
         x=0
         while x<len(n):
                 for i in m:
+                        #TCGA-OL-A66H does not have the attribute OS_MONTHS
                         #TCGA-BH-A0B2 does not have OS_MONTHS, only has AGE, AJCC_PATHOLOGIC_TUMOR_STAGE, AJCC_STAGING_EDITION, CANCER_TYPE_ACRONYM, CENTER, DAYS_LAST_FOLLOWUP, DAYS_TO_BIRTH, DAYS_TO_INITIAL_PATHOLOGIC_DIAGNOSIS, ETHNICITY, FORM_COMPLETION_DATE, HISTORY_NEOADJUVANT_TRTYN, ICD_10, ICD_O_3_HISTOLOGY, ICD_O_3_SITE, INFORMED_CONSENT_VERIFIED, "IN_PANCANPATHWAYS_FREEZE, OTHER_PATIENT_ID, PATH_M_STAGE, PATH_N_STAGE, PATH_T_STAGE, PERSON_NEOPLASM_CANCER_STATUS, PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT, PRIOR_DX, RACE, SAMPLE_COUNT, SEX
                         if n[x]==i or n[x]=='TCGA-BH-A0B2' or n[x]=='TCGA-OL-A66H':
+                                #if the patient ID is in the list of those with a mutation then the patient ID will be added to the list that will not be used
                                 no.append(i)
+                                
                                 x=x+1
+
+                #if the patient ID is not in the list of those with a mutation then the patient ID will be added to the list that will be outputted by this method
                 use.append(n[x])
+
+                #increments x
                 x=x+1
         print("List of those without mutation {} ".format(use))
         print(" ")
@@ -123,7 +131,7 @@ def main():
 
 	mutation(patient_EP300)
 	no_mutation(patientIds,patient_EP300)
-	plot_mutations(mutated_genes)
+	#plot_mutations(mutated_genes)
 
 if __name__ == '__main__':
 	main()
