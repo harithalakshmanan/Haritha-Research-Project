@@ -56,7 +56,7 @@ def no_mutation (n,m):
                                 overall_mutations.append(1)                                
                                 x=x+1
 
-                #if the patient ID is not in the list of those with a mutation then the patient ID will be added to the list that will be outputted by this method
+                #if the patient ID is not in the list of those without a mutation then the patient ID will be added to the list that will be outputted by this method
                 use.append(n[x])
                 everything.append(n[x])
                 overall_mutations.append(0)
@@ -72,7 +72,7 @@ def no_mutation (n,m):
         for j in everything:
                 #outputs how many months that person has been alive after diagnosis
                 months_living.append(cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_MONTHS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0])
-    
+
                 #outputs current age of person without mutation
                 living = cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value']
                 if living == '0:LIVING':
@@ -80,7 +80,8 @@ def no_mutation (n,m):
                 elif living == '1:DECEASED':
                     survival_status.append(1)
 
-        months = [x.value for x in months_living]
+        months = [float(x.value) for x in months_living]
+        print(months)
         return months, survival_status, overall_mutations
 
 def main():
@@ -97,22 +98,22 @@ def main():
 	print("The brca_tcga_pan_can_atlas_2018 study spans {} patients".format(len(patients)))
 
 	# select genes in the cohort of interest
-	genes = cbioportal.Genes.getGeneUsingGET(geneId='MAP3K1').result() #TP53 = 7157, EP300 = 2033, PIK3CA=5290, CDH1=999, GATA3=2625, MAP3K1=4214
-	print("The Entrez Gene ID for gene MAP3K1 is {} ".format(genes.entrezGeneId))
+	genes = cbioportal.Genes.getGeneUsingGET(geneId='PIK3CA').result() #TP53 = 7157, EP300 = 2033, PIK3CA=5290, CDH1=999, GATA3=2625, MAP3K1=4214
+	print("The Entrez Gene ID for gene PIK3CA is {} ".format(genes.entrezGeneId))
 
 	
 	# what kind of mutations do the patients in this cohort have? 
 	mutations = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(
-    	entrezGeneId=4214,
+    	entrezGeneId=5290,
         molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations',
     	sampleListId='brca_tcga_pan_can_atlas_2018_all',
     	projection='DETAILED'
 	).result()
-	print("The number of patients with a mutation of the EP300 gene is {} ".format(len(mutations)))
+	print("The number of patients with a mutation of the PIK3CA gene is {} ".format(len(mutations)))
 	patients = cbioportal.Patients.getAllPatientsInStudyUsingGET(studyId='brca_tcga_pan_can_atlas_2018').result()
 	patientIds = [x.patientId for x in patients]
 
-	mutation_EP300 = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=4214, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
+	mutation_EP300 = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=5290, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
 	patient_EP300=[x.patientId for x in mutation_EP300]
 	
 	graph(patientIds,patient_EP300)
