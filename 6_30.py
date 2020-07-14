@@ -28,7 +28,7 @@ def graph(full, mutation):
     kmf.fit(survival_data.OS_MONTHS[~has_mutation], survival_data.OS_STATUS[~has_mutation], label="no mutation")
     layer2=kmf.plot(ax=layer1, ci_show=True)
 
-    plt.title('MAP3K1 survival plot')
+    plt.title('PIK3CA survival plot')
 
     ## view plot
     plt.show()
@@ -47,9 +47,7 @@ def no_mutation (n,m):
         x=0
         while x<len(n):
                 for i in m:
-                        #TCGA-OL-A66H does not have the attribute OS_MONTHS
-                        #TCGA-BH-A0B2 does not have OS_MONTHS, only has AGE, AJCC_PATHOLOGIC_TUMOR_STAGE, AJCC_STAGING_EDITION, CANCER_TYPE_ACRONYM, CENTER, DAYS_LAST_FOLLOWUP, DAYS_TO_BIRTH, DAYS_TO_INITIAL_PATHOLOGIC_DIAGNOSIS, ETHNICITY, FORM_COMPLETION_DATE, HISTORY_NEOADJUVANT_TRTYN, ICD_10, ICD_O_3_HISTOLOGY, ICD_O_3_SITE, INFORMED_CONSENT_VERIFIED, "IN_PANCANPATHWAYS_FREEZE, OTHER_PATIENT_ID, PATH_M_STAGE, PATH_N_STAGE, PATH_T_STAGE, PERSON_NEOPLASM_CANCER_STATUS, PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT, PRIOR_DX, RACE, SAMPLE_COUNT, SEX
-                        if n[x]==i or n[x]=='TCGA-BH-A0B2' or n[x]=='TCGA-OL-A66H':
+                        if n[x]==i:
                                 #if the patient ID is in the list of those with a mutation then the patient ID will be added to the list that will not be used
                                 no.append(i)
                                 everything.append(i)
@@ -84,6 +82,24 @@ def no_mutation (n,m):
         print(months)
         return months, survival_status, overall_mutations
 
+def filter_anomolies(patientIds, mutatedIds):
+    overall=[]
+    mutated=[]
+    anomoly=[]
+    for j in patientIds:
+        #TCGA-OL-A66H does not have the attribute OS_MONTHS
+        #TCGA-BH-A0B2 does not have OS_MONTHS, only has AGE, AJCC_PATHOLOGIC_TUMOR_STAGE, AJCC_STAGING_EDITION, CANCER_TYPE_ACRONYM, CENTER, DAYS_LAST_FOLLOWUP, DAYS_TO_BIRTH, DAYS_TO_INITIAL_PATHOLOGIC_DIAGNOSIS, ETHNICITY, FORM_COMPLETION_DATE, HISTORY_NEOADJUVANT_TRTYN, ICD_10, ICD_O_3_HISTOLOGY, ICD_O_3_SITE, INFORMED_CONSENT_VERIFIED, "IN_PANCANPATHWAYS_FREEZE, OTHER_PATIENT_ID, PATH_M_STAGE, PATH_N_STAGE, PATH_T_STAGE, PERSON_NEOPLASM_CANCER_STATUS, PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT, PRIOR_DX, RACE, SAMPLE_COUNT, SEX
+        if j=='TCGA-BH-A0B2' or j=='TCGA-OL-A66H':
+            anomoly.append(j)
+        else:
+            overall.append(j)
+    for k in mutatedIds:
+        if k=='TCGA-BH-A0B2' or k=='TCGA-OL-A66H':
+            anomoly.append(k)
+        else:
+            mutated.append(k)
+    graph(overall, mutated)
+    
 def main():
 
 	# some examples of information we can query
@@ -109,14 +125,14 @@ def main():
     	sampleListId='brca_tcga_pan_can_atlas_2018_all',
     	projection='DETAILED'
 	).result()
-	print("The number of patients with a mutation of the PIK3CA gene is {} ".format(len(mutations)))
+	print("The number of patients with a mutation of the TP53 gene is {} ".format(len(mutations)))
 	patients = cbioportal.Patients.getAllPatientsInStudyUsingGET(studyId='brca_tcga_pan_can_atlas_2018').result()
 	patientIds = [x.patientId for x in patients]
 
 	mutation_EP300 = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=5290, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
 	patient_EP300=[x.patientId for x in mutation_EP300]
 	
-	graph(patientIds,patient_EP300)
+	filter_anomolies(patientIds,patient_EP300)
 
 if __name__ == '__main__':
 	main()
