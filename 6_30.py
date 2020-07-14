@@ -28,6 +28,8 @@ def graph(full, mutation):
     kmf.fit(survival_data.OS_MONTHS[~has_mutation], survival_data.OS_STATUS[~has_mutation], label="no mutation")
     layer2=kmf.plot(ax=layer1, ci_show=True)
 
+    plt.title('MAP3K1 survival plot')
+
     ## view plot
     plt.show()
     
