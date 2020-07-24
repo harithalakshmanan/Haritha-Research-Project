@@ -2,6 +2,7 @@ from bravado.client import SwaggerClient
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as stats
 from collections import Counter
 from lifelines.plotting import plot_lifetimes
 from lifelines import KaplanMeierFitter
@@ -9,12 +10,40 @@ from lifelines import KaplanMeierFitter
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
+def statisticalSignificance(survival_status, has_mutation):
+    i=0
+    aliveNo=0     #if patient is alive and does not have mutation
+    aliveYes=0    #if patient is alive and has mutation
+    deceasedNo=0  #if patient died and does not have mutation
+    deceasedYes=0 #if patient died and has mutation
+    while i<len(survival_status):
+        if survival_status[i] == 0 and has_mutation[i] == 0:
+            aliveNo += 1
+            #increments aliveNo
+        elif survival_status[i] == 0 and has_mutation[i] == 1:
+            aliveYes += 1
+            #increments aliveYes
+        elif survival_status[i] == 1 and has_mutation[i] == 0:
+            deceasedNo += 1
+            #increments deceasedNo
+        else:
+            deceasedYes += 1
+            #increments deceasedYes
+        i += 1
+        #increments i
+
+    print("aliveNo {} ".format(aliveNo))
+    print("aliveYes {} ".format(aliveYes))
+    print("deceasedNo {} ".format(deceasedNo))
+    print("deceasedYes {} ".format(deceasedYes))
+    oddsratio, pvalue = stats.fisher_exact([[aliveYes, deceasedYes], [aliveNo, deceasedNo]])
+    print("pvalue {} ".format(pvalue))
+    
 def graph(months, survival_status, has_mutation, name):
 
     survival_data=pd.DataFrame({'OS_MONTHS': months,
                                 'OS_STATUS': survival_status # 0 if living, 1 if dead
                                 })
-
     #0 if don't have mutation, 1 if do have mutation in has_mutation
 
     ## create an kmf object
@@ -41,10 +70,6 @@ def getSurvivalData(patientIds, mutatedIds):
     living=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
     survival_status=np.array(living)=='1:DECEASED'
     
-    print(overall_mutations[0:5])
-    print(months[0:5])
-    print(survival_status[0:5])
-    
     return months, survival_status, overall_mutations  
     
 
@@ -68,7 +93,7 @@ def genes(name):
     return genes.entrezGeneId
 	
 def main():
-    name='TP53'
+    name='MAP3K1'
     geneId=genes(name)
 
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
@@ -85,7 +110,8 @@ def main():
     patient, mutated = anomolies(patientIds, mutatedIds)
     print("Patients used to graph {} ".format(len(patient)))
     months, survival_status, overall_mutations = getSurvivalData(patient, mutated)
-    graph(months, survival_status, overall_mutations, name)
+    #graph(months, survival_status, overall_mutations, name)
+    statisticalSignificance(survival_status, overall_mutations)
 
 if __name__ == '__main__':
 	main()
