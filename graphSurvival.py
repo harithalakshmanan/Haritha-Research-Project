@@ -10,14 +10,6 @@ from sklearn.naive_bayes import BernoulliNB
 
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
-
-def bernoulliNaiveBayes(has_mutation, survival_status):
-    rng = np.random.RandomState(1)
-    a = has_mutation.reshape(len(has_mutation),1)
-    b=survival_status
-    clf=BernoulliNB()
-    clf.fit(a,b)
-    print(clf.predict(a))
           
 def statisticalSignificance(survival_status, has_mutation):
     i=0
@@ -121,7 +113,6 @@ def main():
     months, survival_status, overall_mutations = getSurvivalData(patient, mutated)
     graph(months, survival_status, overall_mutations, name)
     statisticalSignificance(survival_status, overall_mutations)
-    bernoulliNaiveBayes(overall_mutations, survival_status)
 
 if __name__ == '__main__':
 	main()
