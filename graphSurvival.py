@@ -6,37 +6,44 @@ import scipy.stats as stats
 from collections import Counter
 from lifelines.plotting import plot_lifetimes
 from lifelines import KaplanMeierFitter
+from sklearn.naive_bayes import BernoulliNB
 
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
+def bernoulliNaiveBayes(has_mutation, survival_status):
+    rng = np.random.RandomState(1)
+    a = has_mutation.reshape(len(has_mutation),1)
+    b=survival_status
+    clf=BernoulliNB()
+    clf.fit(a,b)
+    print(clf.predict(a))
+          
 def statisticalSignificance(survival_status, has_mutation):
     i=0
     aliveNo=0     #if patient is alive and does not have mutation
     aliveYes=0    #if patient is alive and has mutation
     deceasedNo=0  #if patient died and does not have mutation
     deceasedYes=0 #if patient died and has mutation
+    print(len(has_mutation))
     while i<len(survival_status):
-        if survival_status[i] == 0 and has_mutation[i] == 0:
-            aliveNo += 1
-            #increments aliveNo
-        elif survival_status[i] == 0 and has_mutation[i] == 1:
-            aliveYes += 1
-            #increments aliveYes
-        elif survival_status[i] == 1 and has_mutation[i] == 0:
-            deceasedNo += 1
-            #increments deceasedNo
+        if has_mutation[i] == 1:
+            if survival_status[i] == 0:
+                aliveYes = aliveYes + 1
+            else:
+                deceasedYes = deceasedYes + 1
         else:
-            deceasedYes += 1
-            #increments deceasedYes
-        i += 1
+            if survival_status[i] == 0:
+                aliveNo = aliveNo + 1
+            else:
+                deceasedNo = deceasedNo + 1
+        i = i + 1
         #increments i
-
     print("aliveNo {} ".format(aliveNo))
     print("aliveYes {} ".format(aliveYes))
     print("deceasedNo {} ".format(deceasedNo))
     print("deceasedYes {} ".format(deceasedYes))
-    oddsratio, pvalue = stats.fisher_exact([[aliveYes, deceasedYes], [aliveNo, deceasedNo]])
+    oddsratio, pvalue = stats.fisher_exact([[deceasedYes, aliveYes], [deceasedNo, aliveNo]])
     print("pvalue {} ".format(pvalue))
     
 def graph(months, survival_status, has_mutation, name):
@@ -83,6 +90,7 @@ def anomolies(patientIds, mutatedIds):
     
     mutate=np.isin(mutatedIds, anomolies)
     mutatedIds=mutatedIds[~mutate]
+    mutatedIds=np.unique(mutatedIds) #often times, the same patient ID has multiple mutations of the gene, so unique prevents the same patient ID from being in the list of mutated Ids
     return(patientIds, mutatedIds)
     
 def genes(name):
@@ -93,7 +101,7 @@ def genes(name):
     return genes.entrezGeneId
 	
 def main():
-    name='MAP3K1'
+    name='GATA3'
     geneId=genes(name)
 
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
@@ -105,13 +113,15 @@ def main():
     # what kind of mutations do the patients in this cohort have?
     mutation = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=geneId, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
     mutatedIds=np.array([x.patientId for x in mutation])
-    print("The number of patients with a mutation of the {} gene is {} ".format(name, len(mutation)))
+    print("The number of mutations of the {} gene is {} ".format(name, len(mutation))) #this outputs the total number of mutations of a particular gene which does not need to be the total number of people with the mutation, as the same person could have multiple mutations for the same gene
 
     patient, mutated = anomolies(patientIds, mutatedIds)
     print("Patients used to graph {} ".format(len(patient)))
+    print("total mutated {} ".format(len(mutated)))
     months, survival_status, overall_mutations = getSurvivalData(patient, mutated)
-    #graph(months, survival_status, overall_mutations, name)
+    graph(months, survival_status, overall_mutations, name)
     statisticalSignificance(survival_status, overall_mutations)
+    bernoulliNaiveBayes(overall_mutations, survival_status)
 
 if __name__ == '__main__':
 	main()
