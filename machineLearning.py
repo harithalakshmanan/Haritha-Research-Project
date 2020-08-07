@@ -11,8 +11,8 @@ from sklearn.naive_bayes import BernoulliNB
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def bernoulliNaiveBayes(has_mutation, survival_status):
-    a=has_mutation.reshape(len(has_mutation),1) # gets for one mutation
+def bernoulliNaiveBayes(data, survival_status):
+    a=data # gets for one mutation
     b=survival_status
     clf=BernoulliNB()
     clf.fit(a,b)
@@ -29,16 +29,11 @@ def classificationAccuracy(survival_status, naive_bayes):
     percent=(i/len(survival_status))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
 
-def getSurvivalData(patientIds, mutatedIds):
-    overall_mutations=np.isin(patientIds, mutatedIds)
-    
-    months=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_MONTHS', patientId=j, studyId='brca_tcga_pan_can_atlas_2018').result()[0] for j in patientIds]
-    months=[float(x.value) for x in months]
-    
+def getSurvivalData(patientIds):    
     living=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
     survival_status=np.array(living)=='1:DECEASED'
     
-    return months, survival_status, overall_mutations  
+    return survival_status  
     
 def overallMutations(Ids):
     data=pd.DataFrame({'GATA3': mutation(genes('GATA3'),Ids),
@@ -48,7 +43,8 @@ def overallMutations(Ids):
                        'CDH1': mutation(genes('CDH1'),Ids),
                        })
     print(data)
-    
+    return data
+
 def mutation(entrezId,patient):
     mutatedIds=[]
     #create a matrix where every row is full patient (1082 = size)
@@ -85,10 +81,10 @@ def main():
     patient = anomolies(patientIds)
     print("Patients used to graph {} ".format(len(patient)))
 
-    overallMutations(patient)
-    #months, survival_status, overall_mutations = getSurvivalData(patient, mutated)
-    #naive_bayes = bernoulliNaiveBayes(overall_mutations, survival_status)
-    #classificationAccuracy(survival_status, naive_bayes)
+    overall_mutations = overallMutations(patient)
+    survival_status = getSurvivalData(patient)
+    naive_bayes = bernoulliNaiveBayes(overall_mutations, survival_status)
+    classificationAccuracy(survival_status, naive_bayes)
 
 if __name__ == '__main__':
 	main()
