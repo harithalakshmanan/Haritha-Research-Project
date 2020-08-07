@@ -16,7 +16,6 @@ def bernoulliNaiveBayes(data, survival_status):
     b=survival_status
     clf=BernoulliNB()
     clf.fit(a,b)
-    print(clf.predict(a))
     return (clf.predict(a))
 
 def classificationAccuracy(survival_status, naive_bayes):
@@ -41,6 +40,10 @@ def overallMutations(Ids):
                        'EP300': mutation(genes('EP300'),Ids),
                        'PIK3CA': mutation(genes('PIK3CA'),Ids),
                        'CDH1': mutation(genes('CDH1'),Ids),
+                       'KMT2C': mutation(genes('KMT2C'),Ids),
+                       'MAP3K1': mutation(genes('MAP3K1'),Ids),
+                       'PTEN': mutation(genes('PTEN'),Ids),
+                       'NCOR1': mutation(genes('NCOR1'),Ids)
                        })
     print(data)
     return data
