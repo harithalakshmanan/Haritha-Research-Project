@@ -35,20 +35,39 @@ def getSurvivalData(patientIds):
     return survival_status  
     
 def overallMutations(Ids):
-    data=pd.DataFrame({'GATA3': mutation(genes('GATA3'),Ids),
-                       'TP53': mutation(genes('TP53'),Ids),
-                       'EP300': mutation(genes('EP300'),Ids),
-                       'PIK3CA': mutation(genes('PIK3CA'),Ids),
-                       'CDH1': mutation(genes('CDH1'),Ids),
-                       'KMT2C': mutation(genes('KMT2C'),Ids),
-                       'MAP3K1': mutation(genes('MAP3K1'),Ids),
-                       'PTEN': mutation(genes('PTEN'),Ids),
-                       'NCOR1': mutation(genes('NCOR1'),Ids)
-                       })
+    #this method creates the matrix of data with information regarding each mutated gene and the pertaining mutated patient ID list
+
+    genes=all_mutation(Ids)
+    #calls the all_mutation method which outputs an np array of mutated genes
+
+    data=[]
+    #establishes matrix
+    
+    for i in genes:
+        #for each individual entrez Gene Id in list, a new row is added to the matrix
+        data.append(mutation(i,Ids))
+        #the mutation method is called to produce the patient list in binary form
     print(data)
     return data
 
+def all_mutation(patient):
+    #this method creates outputs all mutated genes that patients have
+    orderedNames=[]
+    all_mutations = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
+    genes=[]
+    print(all_mutations[0]["entrezGeneId"])
+    i=0
+    while i<len(all_mutations):
+        genes.append(all_mutations[i]["entrezGeneId"])
+        i=i+1
+    geneList=np.array(genes)
+    geneList=np.unique(geneList)
+    #each unique entrez ID will be in the list only once
+    print(geneList)
+    return geneList
+
 def mutation(entrezId,patient):
+    #this method returns a row of patientIds in binary form - 1 -> have mutation 0 -> do not have mutation
     mutatedIds=[]
     #create a matrix where every row is full patient (1082 = size)
     mutation = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=entrezId, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
@@ -67,12 +86,6 @@ def anomolies(Ids):
     Ids=Ids[~mask] #error message here #TypeError: only integer scalar arrays can be converted to a scalar index
     Ids=np.unique(Ids)  
     return Ids
-    
-def genes(name):
-    # select genes in the cohort of interest
-    #TP53 = 7157, EP300 = 2033, PIK3CA=5290, CDH1=999, GATA3=2625, MAP3K1=4214
-    genes = cbioportal.Genes.getGeneUsingGET(geneId=name).result()
-    return genes.entrezGeneId
 	
 def main():
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
@@ -85,9 +98,9 @@ def main():
     print("Patients used to graph {} ".format(len(patient)))
 
     overall_mutations = overallMutations(patient)
-    survival_status = getSurvivalData(patient)
-    naive_bayes = bernoulliNaiveBayes(overall_mutations, survival_status)
-    classificationAccuracy(survival_status, naive_bayes)
+    #survival_status = getSurvivalData(patient)
+    #naive_bayes = bernoulliNaiveBayes(overall_mutations, survival_status)
+    #classificationAccuracy(survival_status, naive_bayes)
 
 if __name__ == '__main__':
 	main()
