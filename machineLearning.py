@@ -94,30 +94,24 @@ def anomolies(Ids):
 def get_sample_matrix(studyId):
     # using defaultdict as suggested on stackoverflow https://stackoverflow.com/a/41165807
     # this is a modified version of a dictionary, which means we don't have to check if a key is already in the dict when we add a new value
+    print("querying mutations...")
     all_mutations = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(molecularProfileId= studyId + '_mutations', sampleListId= studyId + '_all').result()
+
+    # exclude invalid entrez ids; negative id is invalid, 101243544 has been removed from database
+    all_mutations = [m for m in all_mutations if m.entrezGeneId not in [-66, 101243544]]
     
-    # exclude invalid entrez ids
-    all_mutations = [m for m in all_mutations if m.entrezGeneId in [-66, 101243544]]
-
-    # edit some retracted entrez ids
-    # 9142: 84631
-    # 23285: 284697
-    # 26148: 84458
-    # 83935: 143872
-    # 114299: 445815
-    # 117153: 4253
-    # 284083: 5414
-    # 348738: 6241
-    # 401388: 7979
-    # 645840: 114112
-    # 100127889: 387707
-    # 101243544: removed from database
-
+    updated_entrez_lookup = {9142: 84631, 23285: 284697, 26148: 84458, 83935: 143872, 114299: 445815, 117153: 4253, \
+                             284083: 5414, 348738: 6241, 401388: 7979, 645840: 114112, 100127889: 387707}
+    
+    print("building patient matrix...")
     # use defaultdict to keep track of which patients have which genes mutated
+    # edit updated entrez ids where necessary
     genes_by_patient = defaultdict(list)
     for mutation in all_mutations:
+        if mutation.entrezGeneId in updated_entrez_lookup:
+            mutation.entrezGeneId = updated_entrez_lookup[mutation.entrezGeneId]
         genes_by_patient[mutation.patientId].append(mutation.entrezGeneId)
-    
+
     # not all patients are present in this dict (1066 total) because some don't have mutations in the selected mollecular profile
     # remove the pateients with missing clinical data
     genes_by_patient.pop('TCGA-BH-A0B2')
@@ -135,7 +129,13 @@ def get_sample_matrix(studyId):
 
     # use mygene to translate entrez ids to gene symbol https://pypi.org/project/mygene/
     mg = mygene.MyGeneInfo()
-    patient_matrix = patient_matrix.rename({x: mg.getgene(x, 'symbol')['symbol'] for x in patient_matrix.columns}, axis = 'columns')
+    # use querymany to make a lookup dictionary of entrez ids to gene symbol
+    # similar to entrez id's with updated versions.
+    print('querying gene names...')
+    gene_names_lookup = mg.querymany(patient_matrix.columns, fields = 'symbol')
+    gene_names_lookup = {int(g['query']): g['symbol'] for g in gene_names_lookup}
+    #patient_matrix.columns = patient_matrix.columns.astype(str)
+    patient_matrix = patient_matrix.rename(gene_names_lookup, axis = 'columns')
 
     return patient_matrix
 
@@ -155,4 +155,4 @@ def main():
     #classificationAccuracy(survival_status, naive_bayes)
 
 if __name__ == '__main__':
-	main()
+    print(get_sample_matrix(studyId = "brca_tcga_pan_can_atlas_2018"))
