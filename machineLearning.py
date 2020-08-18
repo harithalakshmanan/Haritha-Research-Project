@@ -8,6 +8,10 @@ from lifelines.plotting import plot_lifetimes
 from lifelines import KaplanMeierFitter
 from sklearn.naive_bayes import BernoulliNB
 
+from collections import defaultdict
+from sklearn.preprocessing import MultiLabelBinarizer
+import mygene
+
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
@@ -86,7 +90,55 @@ def anomolies(Ids):
     Ids=Ids[~mask] #error message here #TypeError: only integer scalar arrays can be converted to a scalar index
     Ids=np.unique(Ids)  
     return Ids
-	
+
+def get_sample_matrix(studyId):
+    # using defaultdict as suggested on stackoverflow https://stackoverflow.com/a/41165807
+    # this is a modified version of a dictionary, which means we don't have to check if a key is already in the dict when we add a new value
+    all_mutations = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(molecularProfileId= studyId + '_mutations', sampleListId= studyId + '_all').result()
+    
+    # exclude invalid entrez ids
+    all_mutations = [m for m in all_mutations if m.entrezGeneId in [-66, 101243544]]
+
+    # edit some retracted entrez ids
+    # 9142: 84631
+    # 23285: 284697
+    # 26148: 84458
+    # 83935: 143872
+    # 114299: 445815
+    # 117153: 4253
+    # 284083: 5414
+    # 348738: 6241
+    # 401388: 7979
+    # 645840: 114112
+    # 100127889: 387707
+    # 101243544: removed from database
+
+    # use defaultdict to keep track of which patients have which genes mutated
+    genes_by_patient = defaultdict(list)
+    for mutation in all_mutations:
+        genes_by_patient[mutation.patientId].append(mutation.entrezGeneId)
+    
+    # not all patients are present in this dict (1066 total) because some don't have mutations in the selected mollecular profile
+    # remove the pateients with missing clinical data
+    genes_by_patient.pop('TCGA-BH-A0B2')
+    genes_by_patient.pop('TCGA-OL-A66H')
+
+    # remove duplicate genes (patient that have >1 mutation in these genes)
+    genes_by_patient = {p:np.unique(genes_by_patient[p]) for p in genes_by_patient.keys()}
+
+    # use multilabelBinarizer to binarize this dict, as suggested on stackoverflow https://stackoverflow.com/a/47209945
+    s = pd.Series(genes_by_patient)
+    mlb = MultiLabelBinarizer()
+    d = mlb.fit_transform(s)
+
+    patient_matrix = pd.DataFrame(d, s.index, mlb.classes_)
+
+    # use mygene to translate entrez ids to gene symbol https://pypi.org/project/mygene/
+    mg = mygene.MyGeneInfo()
+    patient_matrix = patient_matrix.rename({x: mg.getgene(x, 'symbol')['symbol'] for x in patient_matrix.columns}, axis = 'columns')
+
+    return patient_matrix
+
 def main():
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
     # select patients in the cohort of interest (TCGA pan cancer project)
