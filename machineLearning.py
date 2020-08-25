@@ -1,85 +1,47 @@
 from bravado.client import SwaggerClient
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy.stats as stats
 from collections import Counter
 from lifelines.plotting import plot_lifetimes
 from lifelines import KaplanMeierFitter
 from sklearn.naive_bayes import BernoulliNB
-
 from collections import defaultdict
 from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.model_selection import train_test_split
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
 import mygene
 
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def bernoulliNaiveBayes(data, survival_status):
-    a=data # gets for one mutation
-    b=survival_status
+def classificationAccuracy(matrix, survival):
+    #test splits data
+    matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
+
+    #Bernoulli Naive Bayes    
+    a=matrix_train # gets for one mutation
+    b=survival_train
     clf=BernoulliNB()
     clf.fit(a,b)
-    return (clf.predict(a))
+    naive_bayes = (clf.predict(a))
 
-def classificationAccuracy(survival_status, naive_bayes):
+    #Classification Accuracy checked
     x=0
     i=0
-    while i<len(survival_status):
-        if survival_status[i]==naive_bayes[i]:
+    while i<len(survival_train):
+        if survival_train[i]==naive_bayes[i]:
             x+=1
         i+=1
-    percent=(i/len(survival_status))*100
+    percent=(i/len(survival_train))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
 
 def getSurvivalData(patientIds):    
     living=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
     survival_status=np.array(living)=='1:DECEASED'
-    
+    print(survival_status)
     return survival_status  
-    
-def overallMutations(Ids):
-    #this method creates the matrix of data with information regarding each mutated gene and the pertaining mutated patient ID list
-
-    genes=all_mutation(Ids)
-    #calls the all_mutation method which outputs an np array of mutated genes
-
-    data=[]
-    #establishes matrix
-    
-    for i in genes:
-        #for each individual entrez Gene Id in list, a new row is added to the matrix
-        data.append(mutation(i,Ids))
-        #the mutation method is called to produce the patient list in binary form
-    print(data)
-    return data
-
-def all_mutation(patient):
-    #this method creates outputs all mutated genes that patients have
-    orderedNames=[]
-    all_mutations = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
-    genes=[]
-    print(all_mutations[0]["entrezGeneId"])
-    i=0
-    while i<len(all_mutations):
-        genes.append(all_mutations[i]["entrezGeneId"])
-        i=i+1
-    geneList=np.array(genes)
-    geneList=np.unique(geneList)
-    #each unique entrez ID will be in the list only once
-    print(geneList)
-    return geneList
-
-def mutation(entrezId,patient):
-    #this method returns a row of patientIds in binary form - 1 -> have mutation 0 -> do not have mutation
-    mutatedIds=[]
-    #create a matrix where every row is full patient (1082 = size)
-    mutation = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=entrezId, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
-    mutatedIds.append(np.array([x.patientId for x in mutation]))
-    mutatedIds=np.unique(mutatedIds)
-    overall_mutations=np.isin(patient,mutatedIds)
-    #often times, the same patient ID has multiple mutations of the gene, so unique prevents the same patient ID from being in the list of mutated Ids
-    return overall_mutations
     
 def anomolies(Ids):
     #this method returns a lists of patient Ids that are not repeated and that do not belong to the anomolies list
@@ -137,7 +99,7 @@ def get_sample_matrix(studyId):
     #patient_matrix.columns = patient_matrix.columns.astype(str)
     patient_matrix = patient_matrix.rename(gene_names_lookup, axis = 'columns')
 
-    return patient_matrix
+    return s.index, patient_matrix
 
 def main():
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
@@ -149,10 +111,9 @@ def main():
     patient = anomolies(patientIds)
     print("Patients used to graph {} ".format(len(patient)))
 
-    overall_mutations = overallMutations(patient)
-    #survival_status = getSurvivalData(patient)
-    #naive_bayes = bernoulliNaiveBayes(overall_mutations, survival_status)
-    #classificationAccuracy(survival_status, naive_bayes)
+    patientIds, patient_matrix=get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
+    survival_status = getSurvivalData(patientIds)
+    classificationAccuracy(patient_matrix, survival_status)
 
 if __name__ == '__main__':
-    print(get_sample_matrix(studyId = "brca_tcga_pan_can_atlas_2018"))
+    main()
