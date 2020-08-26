@@ -19,13 +19,15 @@ cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
 def classificationAccuracy(matrix, survival):
     #test splits data
     matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
-
+    print("training matrix {}".format(matrix_train))
+    print("survival test {}".format(survival_test))
     #Bernoulli Naive Bayes    
     a=matrix_train # gets for one mutation
     b=survival_train
     clf=BernoulliNB()
     clf.fit(a,b)
     naive_bayes = (clf.predict(a))
+    print("naive bayes {}".format(naive_bayes))
 
     #Classification Accuracy checked
     x=0
