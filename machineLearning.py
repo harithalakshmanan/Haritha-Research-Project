@@ -6,6 +6,7 @@ from sklearn.naive_bayes import BernoulliNB
 from collections import defaultdict
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
+from sklearn.feature_selection import SelectFromModel
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -16,28 +17,42 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
+def featureSelection(matrix_train, survival_train):
+    selector = SelectFromModel(estimator=BernoulliNB()).fit(matrix_train, survival_train)
+    
+    a=selector.estimator_.coef_
+    print("selector.estimator_.coef_ {}".format(a))
+    
+    b=selector.threshold_
+    print("selector.threshold_ {}".format(b))
+    
+    c=selector.get_support()
+    print("selector.get_support() {}".format(c))
+
+    d=selector.transform(matrix_train)
+    print("selector.transform(matrix_train) {}".format(d))
+    
 def classificationAccuracy(matrix, survival):
     #test splits data
     matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
-    print("training matrix {}".format(matrix_train))
-    print("survival test {}".format(survival_test))
+    
     #Bernoulli Naive Bayes    
     a=matrix_train # gets for one mutation
     b=survival_train
     clf=BernoulliNB()
     clf.fit(a,b)
-    naive_bayes = (clf.predict(a))
-    print("naive bayes {}".format(naive_bayes))
-
-    #Classification Accuracy checked
+    naive_bayes = (clf.predict(matrix_test))
+        
     x=0
     i=0
-    while i<len(survival_train):
-        if survival_train[i]==naive_bayes[i]:
+    while i<len(survival_test):
+        if survival_test[i]==naive_bayes[i]:
             x+=1
         i+=1
-    percent=(i/len(survival_train))*100
+    percent=(x/len(survival_test))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
+    print()
+    return matrix_train, survival_train
 
 def getSurvivalData(patientIds):    
     living=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
@@ -113,9 +128,10 @@ def main():
     patient = anomolies(patientIds)
     print("Patients used to graph {} ".format(len(patient)))
 
-    patientIds, patient_matrix=get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
+    patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    classificationAccuracy(patient_matrix, survival_status)
+    matrix_train, survival_train = classificationAccuracy(patient_matrix, survival_status)
+    featureSelection(matrix_train, survival_train)
 
 if __name__ == '__main__':
     main()
