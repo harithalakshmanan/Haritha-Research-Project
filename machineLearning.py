@@ -19,44 +19,48 @@ cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
 
 def featureSelection(matrix_train, survival_train):
     selector = SelectFromModel(estimator=BernoulliNB()).fit(matrix_train, survival_train)
-    
-    a=selector.estimator_.coef_
+    a = selector.estimator_.coef_
     print("selector.estimator_.coef_ {}".format(a))
-    
-    b=selector.threshold_
+    a = a.flatten() #flattens 2D array into 1D array
+    a = [abs(element) for element in a] #takes the absolute value of all elements in the array
+    b = selector.threshold_
     print("selector.threshold_ {}".format(b))
-    
-    c=selector.get_support()
+    c = selector.get_support()
     print("selector.get_support() {}".format(c))
-
-    d=selector.transform(matrix_train)
+    d = selector.transform(matrix_train)
     print("selector.transform(matrix_train) {}".format(d))
+
+    index_list=[index for index, value in enumerate(a)] #produces a list of indices
+    plt.scatter(index_list, a, s=2) #plt.scatter(x-values, y-values, s=size)
+    plt.plot([0, len(a)], [b,b], color='red') #plt.plot(x_coordinates, y_coordinates)
+    plt.title('Estimated Coefficients')
+    plt.show()
     
 def classificationAccuracy(matrix, survival):
     #test splits data
     matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
     
     #Bernoulli Naive Bayes    
-    a=matrix_train # gets for one mutation
-    b=survival_train
-    clf=BernoulliNB()
+    a = matrix_train # gets for one mutation
+    b = survival_train
+    clf = BernoulliNB()
     clf.fit(a,b)
     naive_bayes = (clf.predict(matrix_test))
         
-    x=0
-    i=0
+    x = 0
+    i = 0
     while i<len(survival_test):
-        if survival_test[i]==naive_bayes[i]:
-            x+=1
-        i+=1
-    percent=(x/len(survival_test))*100
+        if survival_test[i] == naive_bayes[i]:
+            x += 1
+        i += 1
+    percent = (x/len(survival_test))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
     print()
     return matrix_train, survival_train
 
 def getSurvivalData(patientIds):    
-    living=[cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
-    survival_status=np.array(living)=='1:DECEASED'
+    living = [cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
+    survival_status = np.array(living) == '1:DECEASED'
     print(survival_status)
     return survival_status  
     
@@ -64,10 +68,10 @@ def anomolies(Ids):
     #this method returns a lists of patient Ids that are not repeated and that do not belong to the anomolies list
     #TCGA-OL-A66H does not have the attribute OS_MONTHS
     #TCGA-BH-A0B2 does not have OS_MONTHS, only has AGE, AJCC_PATHOLOGIC_TUMOR_STAGE, AJCC_STAGING_EDITION, CANCER_TYPE_ACRONYM, CENTER, DAYS_LAST_FOLLOWUP, DAYS_TO_BIRTH, DAYS_TO_INITIAL_PATHOLOGIC_DIAGNOSIS, ETHNICITY, FORM_COMPLETION_DATE, HISTORY_NEOADJUVANT_TRTYN, ICD_10, ICD_O_3_HISTOLOGY, ICD_O_3_SITE, INFORMED_CONSENT_VERIFIED, "IN_PANCANPATHWAYS_FREEZE, OTHER_PATIENT_ID, PATH_M_STAGE, PATH_N_STAGE, PATH_T_STAGE, PERSON_NEOPLASM_CANCER_STATUS, PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT, PRIOR_DX, RACE, SAMPLE_COUNT, SEX
-    anomolies=(['TCGA-BH-A0B2', 'TCGA-OL-A66H'])
-    mask=np.isin(Ids, anomolies)
-    Ids=Ids[~mask] #error message here #TypeError: only integer scalar arrays can be converted to a scalar index
-    Ids=np.unique(Ids)  
+    anomolies = (['TCGA-BH-A0B2', 'TCGA-OL-A66H'])
+    mask = np.isin(Ids, anomolies)
+    Ids = Ids[~mask] #error message here #TypeError: only integer scalar arrays can be converted to a scalar index
+    Ids = np.unique(Ids)  
     return Ids
 
 def get_sample_matrix(studyId):
