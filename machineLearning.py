@@ -17,6 +17,13 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
+def feature(d1, d2, d3, d4):
+    mask=np.intersect(d1,d2)
+    mask1=np.intersect(mask, d3)
+    mask2=np.intersect(mask1, d4)
+    print(mask2)
+    print(list(mask2))
+
 def featureSelection(matrix_train, survival_train):
     selector = SelectFromModel(estimator=BernoulliNB()).fit(matrix_train, survival_train)
     a = selector.estimator_.coef_
@@ -35,6 +42,14 @@ def featureSelection(matrix_train, survival_train):
     plt.plot([0, len(a)], [b,b], color='red') #plt.plot(x_coordinates, y_coordinates)
     plt.title('Estimated Coefficients')
     plt.show()
+
+    i=0
+    while i<5:
+        selector = SelectFromModel(estimator=BernoulliNB()).fit(d, survival_train)
+        d = selector.transform(d)
+        print(d.shape)
+        i = i+1
+    return d
     
 def classificationAccuracy(matrix, survival):
     #test splits data
@@ -135,7 +150,11 @@ def main():
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
     matrix_train, survival_train = classificationAccuracy(patient_matrix, survival_status)
-    featureSelection(matrix_train, survival_train)
+    d1=featureSelection(matrix_train, survival_train)
+    d2=featureSelection(matrix_train, survival_train)
+    d3=featureSelection(matrix_train, survival_train)
+    d4=featureSelection(matrix_train, survival_train)
+    feature(d1, d2, d3, d4)
 
 if __name__ == '__main__':
     main()
