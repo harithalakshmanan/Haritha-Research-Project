@@ -18,9 +18,10 @@ cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
 def feature(d1, d2, d3, d4):
-    mask=np.intersect(d1,d2)
-    mask1=np.intersect(mask, d3)
-    mask2=np.intersect(mask1, d4)
+    mask = np.intersect1d(d1.flatten(),d2.flatten())
+    mask1 = np.intersect1d(mask, d3.flatten())
+    mask2 = np.intersect1d(mask1, d4.flatten())
+    mask2 = mask2.reshape(0, len(d1))
     print(mask2)
     print(list(mask2))
 
@@ -36,19 +37,13 @@ def featureSelection(matrix_train, survival_train):
     print("selector.get_support() {}".format(c))
     d = selector.transform(matrix_train)
     print("selector.transform(matrix_train) {}".format(d))
+    print(d.shape)
 
     index_list=[index for index, value in enumerate(a)] #produces a list of indices
     plt.scatter(index_list, a, s=2) #plt.scatter(x-values, y-values, s=size)
     plt.plot([0, len(a)], [b,b], color='red') #plt.plot(x_coordinates, y_coordinates)
     plt.title('Estimated Coefficients')
     plt.show()
-
-    i=0
-    while i<5:
-        selector = SelectFromModel(estimator=BernoulliNB()).fit(d, survival_train)
-        d = selector.transform(d)
-        print(d.shape)
-        i = i+1
     return d
     
 def classificationAccuracy(matrix, survival):
@@ -134,7 +129,8 @@ def get_sample_matrix(studyId):
     gene_names_lookup = {int(g['query']): g['symbol'] for g in gene_names_lookup}
     #patient_matrix.columns = patient_matrix.columns.astype(str)
     patient_matrix = patient_matrix.rename(gene_names_lookup, axis = 'columns')
-
+    print(len(patient_matrix))
+    
     return s.index, patient_matrix
 
 def main():
