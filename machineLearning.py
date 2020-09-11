@@ -6,7 +6,8 @@ from sklearn.naive_bayes import BernoulliNB
 from collections import defaultdict
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
-from sklearn.feature_selection import SelectFromModel
+from sklearn.feature_selection import RFECV
+from sklearn.svm import SVR
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,39 +18,16 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def feature(d1, d2, d3, d4):
-    mask=np.intersect(d1,d2)
-    mask1=np.intersect(mask, d3)
-    mask2=np.intersect(mask1, d4)
-    print(mask2)
-    print(list(mask2))
-
 def featureSelection(matrix_train, survival_train):
-    selector = SelectFromModel(estimator=BernoulliNB()).fit(matrix_train, survival_train)
-    a = selector.estimator_.coef_
-    print("selector.estimator_.coef_ {}".format(a))
-    a = a.flatten() #flattens 2D array into 1D array
-    a = [abs(element) for element in a] #takes the absolute value of all elements in the array
-    b = selector.threshold_
-    print("selector.threshold_ {}".format(b))
-    c = selector.get_support()
-    print("selector.get_support() {}".format(c))
-    d = selector.transform(matrix_train)
-    print("selector.transform(matrix_train) {}".format(d))
-
-    index_list=[index for index, value in enumerate(a)] #produces a list of indices
-    plt.scatter(index_list, a, s=2) #plt.scatter(x-values, y-values, s=size)
-    plt.plot([0, len(a)], [b,b], color='red') #plt.plot(x_coordinates, y_coordinates)
-    plt.title('Estimated Coefficients')
-    plt.show()
-
-    i=0
-    while i<5:
-        selector = SelectFromModel(estimator=BernoulliNB()).fit(d, survival_train)
-        d = selector.transform(d)
-        print(d.shape)
-        i = i+1
-    return d
+    estimator = SVR(kernel="linear")
+    selector = RFECV(estimator, step=1, cv=5)
+    selector = selector.fit(matrix_train, survival_train)
+    print(selector.support_)
+    print(selector.ranking_)
+    prediction = selector.predict(matrix_train)
+    print(prediction)
+    transformation = selector.transform(matrix_train)
+    print(transformation)
     
 def classificationAccuracy(matrix, survival):
     #test splits data
@@ -150,11 +128,7 @@ def main():
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
     matrix_train, survival_train = classificationAccuracy(patient_matrix, survival_status)
-    d1=featureSelection(matrix_train, survival_train)
-    d2=featureSelection(matrix_train, survival_train)
-    d3=featureSelection(matrix_train, survival_train)
-    d4=featureSelection(matrix_train, survival_train)
-    feature(d1, d2, d3, d4)
+    featureSelection(matrix_train, survival_train)
 
 if __name__ == '__main__':
     main()
