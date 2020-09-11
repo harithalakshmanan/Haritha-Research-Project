@@ -18,16 +18,18 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def featureSelection(matrix_train, survival_train):
+def featureSelection(matrix_train, matrix_test, survival_train):
     #estimator = SVR(kernel="linear")
     estimator = BernoulliNB()
-    selector = RFECV(estimator)
+    selector = RFECV(estimator, step=50, verbose=1)
     print("hi")
-    selector.fit(matrix_train, survival_train)
+    selector = selector.fit(matrix_train, survival_train)
     print(selector.support_)
     print(selector.ranking_)
     print(selector.predict(matrix_train))
+    print(selector.predict(matrix_test))
     print(selector.transform(matrix_train))
+    print(selector.transform(matrix_test))
     
 def classificationAccuracy(matrix, survival):
     #test splits data
@@ -49,7 +51,7 @@ def classificationAccuracy(matrix, survival):
     percent = (x/len(survival_test))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
     print()
-    return matrix_train, survival_train
+    return matrix_train, matrix_test, survival_train
 
 def getSurvivalData(patientIds):    
     living = [cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
@@ -127,8 +129,8 @@ def main():
 
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    matrix_train, survival_train = classificationAccuracy(patient_matrix, survival_status)
-    featureSelection(matrix_train, survival_train)
+    matrix_train, matrix_test, survival_train = classificationAccuracy(patient_matrix, survival_status)
+    featureSelection(matrix_train, matrix_test, survival_train)
 
 if __name__ == '__main__':
     main()
