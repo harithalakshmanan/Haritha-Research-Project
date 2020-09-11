@@ -20,14 +20,14 @@ cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
 
 def featureSelection(matrix_train, survival_train):
     estimator = SVR(kernel="linear")
-    selector = RFECV(estimator, step=1, cv=5)
-    selector = selector.fit(matrix_train, survival_train)
+    selector = RFECV(estimator)
+    print("hi")
+    selector.fit(matrix_train, survival_train)
+    print("bye")
     print(selector.support_)
     print(selector.ranking_)
-    prediction = selector.predict(matrix_train)
-    print(prediction)
-    transformation = selector.transform(matrix_train)
-    print(transformation)
+    print(selector.predict(survival_train))
+    print(selector.transform(matrix_train))
     
 def classificationAccuracy(matrix, survival):
     #test splits data
