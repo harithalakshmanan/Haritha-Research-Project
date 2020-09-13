@@ -8,6 +8,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import RFECV
 from sklearn.svm import SVR
+from random import sample
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -53,6 +54,17 @@ def classificationAccuracy(matrix, survival):
     print()
     return matrix_train, matrix_test, survival_train
 
+def living(survival_status, patient_matrix):
+    survival=random.sample(np.where(survival_status.astype(bool)),151)
+    deceased=np.where(~survival_status.astype(bool))
+    survival=np.array(survival)
+    patients=np.concatenate(survival, deceased)
+    living_matrix=patient_matrix[patients]
+    status=survival_status[patients]
+    print(type(living_matrix))
+    print(type(status))
+    return living_matrix, status
+    
 def getSurvivalData(patientIds):    
     living = [cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
     survival_status = np.array(living) == '1:DECEASED'
@@ -94,6 +106,7 @@ def get_sample_matrix(studyId):
     # remove the pateients with missing clinical data
     genes_by_patient.pop('TCGA-BH-A0B2')
     genes_by_patient.pop('TCGA-OL-A66H')
+    
 
     # remove duplicate genes (patient that have >1 mutation in these genes)
     genes_by_patient = {p:np.unique(genes_by_patient[p]) for p in genes_by_patient.keys()}
@@ -104,7 +117,7 @@ def get_sample_matrix(studyId):
     d = mlb.fit_transform(s)
 
     patient_matrix = pd.DataFrame(d, s.index, mlb.classes_)
-
+    
     # use mygene to translate entrez ids to gene symbol https://pypi.org/project/mygene/
     mg = mygene.MyGeneInfo()
     # use querymany to make a lookup dictionary of entrez ids to gene symbol
@@ -129,7 +142,8 @@ def main():
 
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    matrix_train, matrix_test, survival_train = classificationAccuracy(patient_matrix, survival_status)
+    matrix, status = living(survival_status, patient_matrix)
+    matrix_train, matrix_test, survival_train = classificationAccuracy(matrix, status)
     featureSelection(matrix_train, matrix_test, survival_train)
 
 if __name__ == '__main__':
