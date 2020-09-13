@@ -55,8 +55,8 @@ def classificationAccuracy(matrix, survival):
     return matrix_train, matrix_test, survival_train
 
 def living(survival_status, patient_matrix):
-    survival=random.sample(np.where(survival_status.astype(bool)),151)
-    deceased=np.where(~survival_status.astype(bool))
+    survival=random.sample(np.where(survival_status.astype(bool))[0],151)
+    deceased=np.where(~survival_status.astype(bool))[0]
     survival=np.array(survival)
     patients=np.concatenate(survival, deceased)
     living_matrix=patient_matrix[patients]
