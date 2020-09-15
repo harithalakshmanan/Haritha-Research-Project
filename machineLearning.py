@@ -19,42 +19,44 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def featureSelection(matrix_train, matrix_test, survival_train):
-    #estimator = SVR(kernel="linear")
+def featureSelection(matrix, survival):
+    #train test split
+    matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
+    clf = BernoulliNB()
+    clf.fit(matrix_train, survival_train)
+    print("bernoulli classification accuracy")
+    classificationAccuracy(matrix_test, survival_test)
+    
     estimator = BernoulliNB()
     selector = RFECV(estimator, step=50, verbose=1)
-    print("hi")
     selector = selector.fit(matrix_train, survival_train)
+    
     print(selector.support_)
     print(selector.ranking_)
     print(selector.predict(matrix_train))
     print(selector.predict(matrix_test))
     print(selector.transform(matrix_train))
     print(selector.transform(matrix_test))
+    print("train data classification accuracy")
+    classificationAccuracy(selector.transform(matrix_train), survival_train)
+    print("test data classification accuracy")
+    classificationAccuracy(selector.transform(matrix_test), survival_test)
     
-def classificationAccuracy(matrix, survival):
-    #test splits data
-    matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
-    
-    #Bernoulli Naive Bayes    
-    a = matrix_train # gets for one mutation
-    b = survival_train
-    clf = BernoulliNB()
-    clf.fit(a,b)
-    naive_bayes = (clf.predict(matrix_test))
-        
+def classificationAccuracy(data, survival):
+    data = np.array(data)
+    survival = np.array(survival)
+    data = data.flatten()
     x = 0
     i = 0
-    while i<len(survival_test):
-        if survival_test[i] == naive_bayes[i]:
+    while i<len(survival):
+        if survival[i] == data[i]:
             x += 1
         i += 1
-    percent = (x/len(survival_test))*100
+    percent = (x/len(survival))*100
     print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
     print()
-    return matrix_train, matrix_test, survival_train
 
-def living(survival_status, patient_matrix):
+def dataSubset(survival_status, patient_matrix):
     #astype(bool) converts 1 to True and 0 to False
     #in survival_status, 1 represents deceased
     #a is a list of the indices where survival_status is 0
@@ -69,11 +71,9 @@ def living(survival_status, patient_matrix):
     patients = survival + deceased
     patients = np.array(patients)
 
-    living_matrix = living_matrix.to_numpy()
-    living_matrix = patient_matrix[patients]
-    status = survival_status[patients]
-    print(type(living_matrix))
-    print(type(status))
+    patient_matrix = patient_matrix.to_numpy()
+    living_matrix = patient_matrix[patients] #np.ndarray
+    status = survival_status[patients] #np.ndarray
     return living_matrix, status
     
 def getSurvivalData(patientIds):    
@@ -153,9 +153,8 @@ def main():
 
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    matrix, status = living(survival_status, patient_matrix)
-    matrix_train, matrix_test, survival_train = classificationAccuracy(matrix, status)
-    featureSelection(matrix_train, matrix_test, survival_train)
+    matrix, status = dataSubset(survival_status, patient_matrix)
+    featureSelection(matrix, status)
 
 if __name__ == '__main__':
     main()
