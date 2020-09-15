@@ -63,15 +63,13 @@ def living(survival_status, patient_matrix):
     survival = sample(a,150)
 
     #deceased is a list of the indices where survival_status is 1
-    deceased = np.where(survival_status.astype(bool))[0]
-
-    #both survival and deceased are converted to NumPy arrays
-    survival = np.array(survival)
-    deceased = np.array(deceased)
+    deceased = list(np.where(survival_status.astype(bool))[0])
 
     #patients concatenates or joins the arrays together
-    patients = np.concatenate(survival, deceased)
+    patients = survival + deceased
+    patients = np.array(patients)
 
+    living_matrix = living_matrix.to_numpy()
     living_matrix = patient_matrix[patients]
     status = survival_status[patients]
     print(type(living_matrix))
