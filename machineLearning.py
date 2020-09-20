@@ -8,8 +8,8 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import RFECV
 from sklearn.svm import SVR
-from random import sample
 
+import random
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,16 +31,13 @@ def featureSelection(matrix, survival):
     selector = RFECV(estimator, step=50, verbose=1)
     selector = selector.fit(matrix_train, survival_train)
     
-    print(selector.support_)
     print(selector.ranking_)
     print(selector.predict(matrix_train))
     print(selector.predict(matrix_test))
-    print(selector.transform(matrix_train))
-    print(selector.transform(matrix_test))
     print("train data classification accuracy")
-    classificationAccuracy(selector.transform(matrix_train), survival_train)
+    classificationAccuracy(selector.predict(matrix_train), survival_train)
     print("test data classification accuracy")
-    classificationAccuracy(selector.transform(matrix_test), survival_test)
+    classificationAccuracy(selector.predict(matrix_test), survival_test)
     
 def classificationAccuracy(data, survival):
     data = np.array(data)
@@ -53,7 +50,7 @@ def classificationAccuracy(data, survival):
             x += 1
         i += 1
     percent = (x/len(survival))*100
-    print("The Bernoulli Naive Bayes Classification Algorithm was {}% accurate ".format(percent))
+    print("The Classification Algorithm was {}% accurate ".format(percent))
     print()
 
 def dataSubset(survival_status, patient_matrix):
@@ -62,7 +59,8 @@ def dataSubset(survival_status, patient_matrix):
     #a is a list of the indices where survival_status is 0
     a = list(np.where(~survival_status.astype(bool))[0])
     #survival is a random list of 150 indices
-    survival = sample(a,150)
+    random.seed(a=20)
+    survival = random.sample(a,150)
 
     #deceased is a list of the indices where survival_status is 1
     deceased = list(np.where(survival_status.astype(bool))[0])
