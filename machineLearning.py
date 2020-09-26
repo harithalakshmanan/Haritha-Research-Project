@@ -8,6 +8,10 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import RFECV
 from sklearn.svm import SVR
+from sklearn.metrics import average_precision_score
+from sklearn import svm, datasets
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import plot_precision_recall_curve
 
 import random
 import pandas as pd
@@ -19,7 +23,7 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def featureSelection(matrix, survival):
+def featureSelection(matrix, survival, genes, full_matrix):
     #train test split
     matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
     clf = BernoulliNB()
@@ -38,6 +42,34 @@ def featureSelection(matrix, survival):
     classificationAccuracy(selector.predict(matrix_train), survival_train)
     print("test data classification accuracy")
     classificationAccuracy(selector.predict(matrix_test), survival_test)
+
+    #PRECISION AND RECALL
+    selector.transform(matrix_test)
+    survival_score = selector.predict(matrix_test)
+    average_precision = average_precision_score(survival_test, survival_score)
+    print('Average precision-recall score: {0:0.2f}'.format(average_precision))
+    disp = plot_precision_recall_curve(selector, matrix_test, survival_test)
+    disp.ax_.set_title('Precision-Recall curve: '
+                       'AP={0:0.2f}'.format(average_precision))
+    plt.show()
+    
+    #GENE SELECTION
+    #gene_indices = matrix[np.any(cdist(matrix[:,1:], matrix_train)==0, axis=1)]
+    training = selector.transform(matrix_train)
+    index = []
+    i = 0
+    j = 0
+    while i<len(full_matrix):
+        while j<len(training):
+            if (full_matrix[i,:]==training[j,:]).all():
+                index.append(i)
+            j = j+1
+        i = i+1
+    index = np.array(index)
+    #gene_array=list(genes)
+    #index=list(gene_indices)
+    gene_list = genes[index]
+    print("training genes {} ".format(gene_list))
     
 def classificationAccuracy(data, survival):
     data = np.array(data)
@@ -54,12 +86,17 @@ def classificationAccuracy(data, survival):
     print()
 
 def dataSubset(survival_status, patient_matrix):
+    genes = []
+    for col in patient_matrix:
+        genes.append(col)
+    genes = np.array(genes)
     #astype(bool) converts 1 to True and 0 to False
     #in survival_status, 1 represents deceased
     #a is a list of the indices where survival_status is 0
     a = list(np.where(~survival_status.astype(bool))[0])
     #survival is a random list of 150 indices
-    random.seed(a=20)
+    print("random seed = 30")
+    random.seed(a=30)
     survival = random.sample(a,150)
 
     #deceased is a list of the indices where survival_status is 1
@@ -72,7 +109,7 @@ def dataSubset(survival_status, patient_matrix):
     patient_matrix = patient_matrix.to_numpy()
     living_matrix = patient_matrix[patients] #np.ndarray
     status = survival_status[patients] #np.ndarray
-    return living_matrix, status
+    return living_matrix, status, genes, patient_matrix
     
 def getSurvivalData(patientIds):    
     living = [cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
@@ -151,8 +188,8 @@ def main():
 
     patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    matrix, status = dataSubset(survival_status, patient_matrix)
-    featureSelection(matrix, status)
+    matrix, status, genes, full_matrix = dataSubset(survival_status, patient_matrix)
+    featureSelection(matrix, status, genes, full_matrix)
 
 if __name__ == '__main__':
     main()
