@@ -23,9 +23,9 @@ import mygene
 cbioportal = SwaggerClient.from_url('https://www.cbioportal.org/api/api-docs',
                                 config={"validate_requests":False,"validate_responses":False})
 
-def featureSelection(matrix, survival, genes, full_matrix):
+def featureSelection(matrix, survival, genes):
     #train test split
-    matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival)
+    matrix_train, matrix_test, survival_train, survival_test = train_test_split(matrix, survival, test_size=0.2, random_state=42)
     clf = BernoulliNB()
     clf.fit(matrix_train, survival_train)
     print("bernoulli classification accuracy")
@@ -55,21 +55,13 @@ def featureSelection(matrix, survival, genes, full_matrix):
     
     #GENE SELECTION
     #gene_indices = matrix[np.any(cdist(matrix[:,1:], matrix_train)==0, axis=1)]
-    training = selector.transform(matrix_train)
-    index = []
-    i = 0
-    j = 0
-    while i<len(full_matrix):
-        while j<len(training):
-            if (full_matrix[i,:]==training[j,:]).all():
-                index.append(i)
-            j = j+1
-        i = i+1
-    index = np.array(index)
-    #gene_array=list(genes)
-    #index=list(gene_indices)
-    gene_list = genes[index]
-    print("training genes {} ".format(gene_list))
+    i=0
+    x=[]
+    while i<len(selector.ranking_):
+        if selector.ranking_[i]==1:
+            x.append(genes[i])
+        i=i+1
+    print("training genes {} ".format(x))
     
 def classificationAccuracy(data, survival):
     data = np.array(data)
@@ -86,10 +78,6 @@ def classificationAccuracy(data, survival):
     print()
 
 def dataSubset(survival_status, patient_matrix):
-    genes = []
-    for col in patient_matrix:
-        genes.append(col)
-    genes = np.array(genes)
     #astype(bool) converts 1 to True and 0 to False
     #in survival_status, 1 represents deceased
     #a is a list of the indices where survival_status is 0
@@ -109,7 +97,7 @@ def dataSubset(survival_status, patient_matrix):
     patient_matrix = patient_matrix.to_numpy()
     living_matrix = patient_matrix[patients] #np.ndarray
     status = survival_status[patients] #np.ndarray
-    return living_matrix, status, genes, patient_matrix
+    return living_matrix, status
     
 def getSurvivalData(patientIds):    
     living = [cbioportal.Clinical_Data.getAllClinicalDataOfPatientInStudyUsingGET(attributeId='OS_STATUS', patientId=i, studyId='brca_tcga_pan_can_atlas_2018').result()[0]['value'] for i in patientIds]
@@ -163,7 +151,6 @@ def get_sample_matrix(studyId):
     d = mlb.fit_transform(s)
 
     patient_matrix = pd.DataFrame(d, s.index, mlb.classes_)
-    
     # use mygene to translate entrez ids to gene symbol https://pypi.org/project/mygene/
     mg = mygene.MyGeneInfo()
     # use querymany to make a lookup dictionary of entrez ids to gene symbol
@@ -173,8 +160,12 @@ def get_sample_matrix(studyId):
     gene_names_lookup = {int(g['query']): g['symbol'] for g in gene_names_lookup}
     #patient_matrix.columns = patient_matrix.columns.astype(str)
     patient_matrix = patient_matrix.rename(gene_names_lookup, axis = 'columns')
-
-    return s.index, patient_matrix
+    genes=[]
+    for col in patient_matrix:
+        genes.append(col)
+    genes=np.array(genes)
+    print(genes)
+    return s.index, patient_matrix, genes
 
 def main():
     # extended documentation available here https://www.cbioportal.org/api/swagger-ui.html
@@ -186,10 +177,10 @@ def main():
     patient = anomolies(patientIds)
     print("Patients used to graph {} ".format(len(patient)))
 
-    patientIds, patient_matrix = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
+    patientIds, patient_matrix, genes = get_sample_matrix(studyId='brca_tcga_pan_can_atlas_2018')
     survival_status = getSurvivalData(patientIds)
-    matrix, status, genes, full_matrix = dataSubset(survival_status, patient_matrix)
-    featureSelection(matrix, status, genes, full_matrix)
+    matrix, status = dataSubset(survival_status, patient_matrix)
+    featureSelection(matrix, status, genes)
 
 if __name__ == '__main__':
     main()
