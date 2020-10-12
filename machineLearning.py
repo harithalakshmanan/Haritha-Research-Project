@@ -59,7 +59,13 @@ def featureSelection(matrix, survival, genes):
     x=[]
     while i<len(selector.ranking_):
         if selector.ranking_[i]==1:
-            x.append(genes[i])
+            try:
+                entrez = cbioportal.Genes.getGeneUsingGET(geneId=genes[i]).result()
+                mutation = cbioportal.Mutations.getMutationsInMolecularProfileBySampleListIdUsingGET(entrezGeneId=entrez.entrezGeneId, molecularProfileId='brca_tcga_pan_can_atlas_2018_mutations', sampleListId='brca_tcga_pan_can_atlas_2018_all').result()
+                if len(mutation)>20:
+                    x.append(genes[i])
+            except:
+                pass
         i=i+1
     print("training genes {} ".format(x))
     
@@ -83,8 +89,8 @@ def dataSubset(survival_status, patient_matrix):
     #a is a list of the indices where survival_status is 0
     a = list(np.where(~survival_status.astype(bool))[0])
     #survival is a random list of 150 indices
-    print("random seed = 30")
-    random.seed(a=30)
+    print("random seed = 37")
+    random.seed(a=37)
     survival = random.sample(a,150)
 
     #deceased is a list of the indices where survival_status is 1
